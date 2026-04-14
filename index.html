@@ -1200,8 +1200,7 @@ function updateHeaderStats() {
 async function loadData() {
   try {
     if (API_URL) {
-      const res = await fetch(API_URL);
-      RAW = await res.json();
+      RAW = await fetchJSONP(API_URL);
     } else {
       RAW = RAW_STATIC;
     }
@@ -1211,6 +1210,25 @@ async function loadData() {
   }
   updateHeaderStats();
   buildSamplesCharts();
+}
+
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Math.random().toString(36).slice(2);
+    window[cbName] = (data) => {
+      delete window[cbName];
+      document.head.removeChild(script);
+      resolve(data);
+    };
+    const script = document.createElement('script');
+    script.src = url + '?callback=' + cbName;
+    script.onerror = () => {
+      delete window[cbName];
+      document.head.removeChild(script);
+      reject(new Error('JSONP failed'));
+    };
+    document.head.appendChild(script);
+  });
 }
 
 // ============================================================
