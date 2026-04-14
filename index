@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drug Checking ECS — Tableau de bord</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0e1117;
+    --surface: #161b26;
+    --surface2: #1e2536;
+    --border: #2a3348;
+    --text: #e8eaf0;
+    --muted: #6b7594;
+    --coke-hcl: #4fc3f7;
+    --coke-base: #f06292;
+    --hero: #a5d6a7;
+    --autre: #ffb74d;
+    --accent: #7986cb;
+    --tag-bg: #1a2340;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .header-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 3px;
+  }
+  header h1 {
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: var(--text);
+    flex: 1;
+  }
+  header h1 span {
+    color: var(--muted);
+    font-weight: 300;
+    font-size: 13px;
+    margin-left: 12px;
+  }
+
+  /* NAV */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    gap: 4px;
+  }
+  nav button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 12px 18px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    letter-spacing: 0.02em;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  /* MAIN */
+  main { padding: 28px 32px; }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+  }
+  .kpi-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .kpi-label::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--dot-color, var(--accent));
+    flex-shrink: 0;
+  }
+  .kpi-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* VIEWS */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* CHART PANELS */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .panel-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel-title .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .panel-body {
+    padding: 16px 20px;
+    position: relative;
+  }
+
+  /* CONTROLS */
+  .controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .controls label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .seg-btn {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.12s;
+    letter-spacing: 0.05em;
+  }
+  .seg-btn:hover { color: var(--text); border-color: var(--accent); }
+  .seg-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 12px 16px;
+  }
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .stat-card .val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .stat-card .sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* PURITY SELECTORS */
+  .product-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .product-tab {
+    padding: 7px 18px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .product-tab:hover { border-color: var(--accent); color: var(--text); }
+  .product-tab.active {
+    color: #fff;
+    font-weight: 600;
+  }
+  .product-tab[data-prod="coke_hcl"].active { background: #1a3a4e; border-color: var(--coke-hcl); color: var(--coke-hcl); }
+  .product-tab[data-prod="coke_base"].active { background: #3d1e2a; border-color: var(--coke-base); color: var(--coke-base); }
+  .product-tab[data-prod="hero"].active { background: #1e3420; border-color: var(--hero); color: var(--hero); }
+
+  canvas { max-height: 320px; }
+
+  /* TOOLTIP override */
+  .tooltip-note {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 6px 20px 12px;
+    font-style: italic;
+  }
+
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 800px) {
+    .kpi-grid { grid-template-columns: repeat(2,1fr); }
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    header { padding: 14px 16px; flex-wrap: wrap; }
+    main { padding: 16px; }
+    nav { padding: 0 8px; }
+  }
+
+  /* TABLE */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    position: sticky; top: 0;
+  }
+  .data-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #1a2030;
+    color: var(--text);
+    vertical-align: top;
+  }
+  .data-table tr:hover td { background: #1a2336; }
+  .data-table td.date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .data-table td.purete { font-family: 'IBM Plex Mono', monospace; font-weight: 600; text-align: right; }
+  .data-table td.comment { color: var(--muted); font-style: italic; font-size: 11px; }
+  .prod-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 3px;
+    font-size: 11px; font-weight: 500;
+    border: 1px solid;
+  }
+  .table-wrap { max-height: 420px; overflow-y: auto; border-radius: 0 0 6px 6px; }
+  .kpi-grid-sm {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">ECS · Drug Checking</div>
+  <h1>Tableau de bord analytique <span>2022–2026</span></h1>
+  <div class="header-badge" id="update-badge">n=702</div>
+</header>
+
+<nav>
+  <button class="active" onclick="showView('echantillons', this)">Échantillons</button>
+  <button onclick="showView('purete', this)">Pureté</button>
+  <button onclick="showView('autres', this)">Autres substances</button>
+</nav>
+
+<main>
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label" style="--dot-color: var(--coke-hcl)">Cocaïne HCl</div>
+      <div class="kpi-value">388</div>
+      <div class="kpi-sub">Médiane pureté : 70.4%</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label" style="--dot-color: var(--coke-base)">Cocaine base</div>
+      <div class="kpi-value">156</div>
+      <div class="kpi-sub">Médiane pureté : 81.6%</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label" style="--dot-color: var(--hero)">Héroïne</div>
+      <div class="kpi-value">115</div>
+      <div class="kpi-sub">Médiane pureté : 12.4%</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label" style="--dot-color: var(--autre)">Total</div>
+      <div class="kpi-value">702</div>
+      <div class="kpi-sub">Nov 2022 → Avr 2026</div>
+    </div>
+  </div>
+
+  <!-- VIEW: ÉCHANTILLONS -->
+  <div id="view-echantillons" class="view active">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="dot" style="background:var(--accent)"></span>
+          Volume d'échantillons par mois
+        </div>
+        <div class="controls">
+          <label>Vue :</label>
+          <button class="seg-btn active" onclick="setStackMode('stacked', this)">Empilé</button>
+          <button class="seg-btn" onclick="setStackMode('grouped', this)">Groupé</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <canvas id="chartSamples"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--coke-hcl)"></div>Cocaïne HCl</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--coke-base)"></div>Cocaine base</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--hero)"></div>Héroïne</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--autre)"></div>Autre</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot" style="background:var(--accent)"></span>Répartition totale</div>
+        </div>
+        <div class="panel-body">
+          <canvas id="chartPie" style="max-height:240px"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot" style="background:var(--accent)"></span>Volume annuel par produit</div>
+        </div>
+        <div class="panel-body">
+          <canvas id="chartYearly" style="max-height:240px"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW: PURETÉ -->
+  <div id="view-purete" class="view">
+    <div class="product-tabs">
+      <button class="product-tab active" data-prod="coke_hcl" onclick="selectProduct('coke_hcl', this)">Cocaïne HCl</button>
+      <button class="product-tab" data-prod="coke_base" onclick="selectProduct('coke_base', this)">Cocaine base</button>
+      <button class="product-tab" data-prod="hero" onclick="selectProduct('hero', this)">Héroïne base</button>
+    </div>
+
+    <div class="stats-row" id="purity-stats"></div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="dot" id="purity-dot" style="background:var(--coke-hcl)"></span>
+          <span id="purity-title">Cocaïne HCl — Évolution de la pureté</span>
+        </div>
+        <div class="controls">
+          <label>Granularité :</label>
+          <button class="seg-btn active" onclick="setGranularity('mois', this)">Mensuel</button>
+          <button class="seg-btn" onclick="setGranularity('trimestre', this)">Trimestriel</button>
+          <button class="seg-btn" onclick="setGranularity('annee', this)">Annuel</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <canvas id="chartPurity"></canvas>
+      </div>
+      <div class="tooltip-note">Bande : Q1–Q3 · Ligne pleine : médiane · Ligne pointillée : moyenne</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="dot" id="hist-dot" style="background:var(--coke-hcl)"></span>
+          <span id="hist-title">Distribution des puretés</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <canvas id="chartHist" style="max-height:220px"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW: AUTRES -->
+  <div id="view-autres" class="view">
+    <div class="kpi-grid-sm">
+      <div class="kpi">
+        <div class="kpi-label" style="--dot-color:#ffb74d">Total autres</div>
+        <div class="kpi-value" style="color:#ffb74d">40</div>
+        <div class="kpi-sub">5.7% des échantillons</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label" style="--dot-color:#8bc34a">Catégorie principale</div>
+        <div class="kpi-value" style="font-size:18px;color:#8bc34a">Cannabis / THC</div>
+        <div class="kpi-sub">21 échantillons (53%)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label" style="--dot-color:#ce93d8">Substances distinctes</div>
+        <div class="kpi-value" style="color:#ce93d8">15</div>
+        <div class="kpi-sub">2023–2026</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot" style="background:#ffb74d"></span>Répartition par substance</div>
+        </div>
+        <div class="panel-body">
+          <canvas id="chartAutresPie" style="max-height:280px"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot" style="background:#ffb74d"></span>Volume par année</div>
+        </div>
+        <div class="panel-body">
+          <canvas id="chartAutresYear" style="max-height:280px"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot" style="background:#ffb74d"></span>Détail des échantillons</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="autresTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Substance</th>
+              <th>Pureté</th>
+              <th>Prix (CHF)</th>
+              <th>Commentaire</th>
+            </tr>
+          </thead>
+          <tbody id="autresTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+// ============================================================
+// API CONFIG — remplace cette URL par ton Apps Script URL
+// ============================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbwkfoDicISqrXtHShtFjS3QDuJ9tHXk1kXGRf1ToDCTPRlAuDgarcctfqgWOq5_FexS/exec';
+
+// Données statiques de secours (dernière version connue)
+const RAW_STATIC = {"samples_by_month": [{"mois": "2022-11", "cat": "Cocaine HCl", "count": 4}, {"mois": "2022-11", "cat": "Cocaine base", "count": 1}, {"mois": "2022-11", "cat": "H\u00e9ro\u00efne", "count": 1}, {"mois": "2022-12", "cat": "Cocaine HCl", "count": 9}, {"mois": "2022-12", "cat": "Cocaine base", "count": 3}, {"mois": "2022-12", "cat": "H\u00e9ro\u00efne", "count": 3}, {"mois": "2023-01", "cat": "Cocaine HCl", "count": 15}, {"mois": "2023-01", "cat": "Cocaine base", "count": 1}, {"mois": "2023-01", "cat": "H\u00e9ro\u00efne", "count": 5}, {"mois": "2023-02", "cat": "Cocaine HCl", "count": 14}, {"mois": "2023-02", "cat": "Cocaine base", "count": 3}, {"mois": "2023-02", "cat": "H\u00e9ro\u00efne", "count": 3}, {"mois": "2023-03", "cat": "Cocaine HCl", "count": 5}, {"mois": "2023-03", "cat": "Cocaine base", "count": 1}, {"mois": "2023-04", "cat": "Cocaine HCl", "count": 8}, {"mois": "2023-04", "cat": "Cocaine base", "count": 4}, {"mois": "2023-04", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2023-05", "cat": "Autre", "count": 1}, {"mois": "2023-05", "cat": "Cocaine HCl", "count": 10}, {"mois": "2023-05", "cat": "Cocaine base", "count": 2}, {"mois": "2023-07", "cat": "Cocaine HCl", "count": 4}, {"mois": "2023-08", "cat": "Cocaine HCl", "count": 5}, {"mois": "2023-10", "cat": "Cocaine HCl", "count": 12}, {"mois": "2023-10", "cat": "Cocaine base", "count": 4}, {"mois": "2023-10", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2023-11", "cat": "Cocaine HCl", "count": 6}, {"mois": "2023-11", "cat": "Cocaine base", "count": 3}, {"mois": "2024-01", "cat": "Autre", "count": 1}, {"mois": "2024-01", "cat": "Cocaine HCl", "count": 12}, {"mois": "2024-01", "cat": "Cocaine base", "count": 2}, {"mois": "2024-03", "cat": "Cocaine HCl", "count": 8}, {"mois": "2024-03", "cat": "Cocaine base", "count": 2}, {"mois": "2024-04", "cat": "Cocaine HCl", "count": 5}, {"mois": "2024-04", "cat": "Cocaine base", "count": 2}, {"mois": "2024-04", "cat": "H\u00e9ro\u00efne", "count": 4}, {"mois": "2024-06", "cat": "Cocaine HCl", "count": 6}, {"mois": "2024-06", "cat": "H\u00e9ro\u00efne", "count": 1}, {"mois": "2024-07", "cat": "Cocaine HCl", "count": 12}, {"mois": "2024-07", "cat": "Cocaine base", "count": 5}, {"mois": "2024-07", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2024-08", "cat": "Cocaine HCl", "count": 9}, {"mois": "2024-08", "cat": "Cocaine base", "count": 3}, {"mois": "2024-08", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2024-09", "cat": "Cocaine HCl", "count": 17}, {"mois": "2024-09", "cat": "Cocaine base", "count": 3}, {"mois": "2024-10", "cat": "Autre", "count": 8}, {"mois": "2024-10", "cat": "Cocaine HCl", "count": 30}, {"mois": "2024-10", "cat": "Cocaine base", "count": 7}, {"mois": "2024-10", "cat": "H\u00e9ro\u00efne", "count": 4}, {"mois": "2024-11", "cat": "Autre", "count": 3}, {"mois": "2024-11", "cat": "Cocaine HCl", "count": 18}, {"mois": "2024-11", "cat": "Cocaine base", "count": 10}, {"mois": "2024-11", "cat": "H\u00e9ro\u00efne", "count": 10}, {"mois": "2024-12", "cat": "Autre", "count": 6}, {"mois": "2024-12", "cat": "Cocaine HCl", "count": 16}, {"mois": "2024-12", "cat": "Cocaine base", "count": 4}, {"mois": "2024-12", "cat": "H\u00e9ro\u00efne", "count": 8}, {"mois": "2025-01", "cat": "Autre", "count": 1}, {"mois": "2025-01", "cat": "Cocaine HCl", "count": 13}, {"mois": "2025-01", "cat": "Cocaine base", "count": 8}, {"mois": "2025-01", "cat": "H\u00e9ro\u00efne", "count": 12}, {"mois": "2025-02", "cat": "Autre", "count": 1}, {"mois": "2025-02", "cat": "Cocaine HCl", "count": 4}, {"mois": "2025-02", "cat": "Cocaine base", "count": 2}, {"mois": "2025-02", "cat": "H\u00e9ro\u00efne", "count": 10}, {"mois": "2025-03", "cat": "Autre", "count": 1}, {"mois": "2025-03", "cat": "Cocaine HCl", "count": 16}, {"mois": "2025-03", "cat": "Cocaine base", "count": 10}, {"mois": "2025-03", "cat": "H\u00e9ro\u00efne", "count": 3}, {"mois": "2025-04", "cat": "Autre", "count": 7}, {"mois": "2025-04", "cat": "Cocaine HCl", "count": 23}, {"mois": "2025-04", "cat": "Cocaine base", "count": 10}, {"mois": "2025-04", "cat": "H\u00e9ro\u00efne", "count": 5}, {"mois": "2025-05", "cat": "Cocaine HCl", "count": 15}, {"mois": "2025-05", "cat": "Cocaine base", "count": 8}, {"mois": "2025-05", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2025-06", "cat": "Autre", "count": 2}, {"mois": "2025-06", "cat": "Cocaine HCl", "count": 9}, {"mois": "2025-06", "cat": "Cocaine base", "count": 4}, {"mois": "2025-06", "cat": "H\u00e9ro\u00efne", "count": 3}, {"mois": "2025-07", "cat": "Autre", "count": 3}, {"mois": "2025-07", "cat": "Cocaine HCl", "count": 15}, {"mois": "2025-07", "cat": "Cocaine base", "count": 5}, {"mois": "2025-07", "cat": "H\u00e9ro\u00efne", "count": 3}, {"mois": "2025-08", "cat": "Cocaine HCl", "count": 2}, {"mois": "2025-08", "cat": "Cocaine base", "count": 1}, {"mois": "2025-08", "cat": "H\u00e9ro\u00efne", "count": 4}, {"mois": "2025-09", "cat": "Cocaine HCl", "count": 8}, {"mois": "2025-09", "cat": "Cocaine base", "count": 10}, {"mois": "2025-09", "cat": "H\u00e9ro\u00efne", "count": 4}, {"mois": "2025-10", "cat": "Cocaine HCl", "count": 12}, {"mois": "2025-10", "cat": "Cocaine base", "count": 9}, {"mois": "2025-10", "cat": "H\u00e9ro\u00efne", "count": 7}, {"mois": "2025-11", "cat": "Autre", "count": 5}, {"mois": "2025-11", "cat": "Cocaine HCl", "count": 12}, {"mois": "2025-11", "cat": "Cocaine base", "count": 6}, {"mois": "2025-11", "cat": "H\u00e9ro\u00efne", "count": 8}, {"mois": "2026-01", "cat": "Autre", "count": 1}, {"mois": "2026-01", "cat": "Cocaine HCl", "count": 5}, {"mois": "2026-01", "cat": "Cocaine base", "count": 5}, {"mois": "2026-01", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2026-02", "cat": "Cocaine HCl", "count": 5}, {"mois": "2026-02", "cat": "Cocaine base", "count": 3}, {"mois": "2026-02", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2026-03", "cat": "Cocaine HCl", "count": 14}, {"mois": "2026-03", "cat": "Cocaine base", "count": 7}, {"mois": "2026-03", "cat": "H\u00e9ro\u00efne", "count": 2}, {"mois": "2026-04", "cat": "Autre", "count": 1}, {"mois": "2026-04", "cat": "Cocaine HCl", "count": 10}, {"mois": "2026-04", "cat": "Cocaine base", "count": 8}, {"mois": "2026-04", "cat": "H\u00e9ro\u00efne", "count": 3}], "purity_coke_hcl": {"mois": [{"mois": "2022-11", "mean": 72.25, "median": 73.4, "count": 4, "std": 10.96, "q25": 66.85, "q75": 78.8}, {"mois": "2022-12", "mean": 70.41, "median": 69.5, "count": 9, "std": 6.84, "q25": 68.5, "q75": 72.2}, {"mois": "2023-01", "mean": 63.97, "median": 65.4, "count": 15, "std": 13.17, "q25": 58.0, "q75": 69.25}, {"mois": "2023-02", "mean": 67.12, "median": 69.7, "count": 14, "std": 7.58, "q25": 64.05, "q75": 71.68}, {"mois": "2023-03", "mean": 78.24, "median": 78.1, "count": 5, "std": 3.09, "q25": 77.7, "q75": 80.3}, {"mois": "2023-04", "mean": 83.64, "median": 81.9, "count": 8, "std": 7.74, "q25": 79.13, "q75": 86.8}, {"mois": "2023-05", "mean": 82.89, "median": 84.25, "count": 10, "std": 8.82, "q25": 77.75, "q75": 89.98}, {"mois": "2023-07", "mean": 65.18, "median": 65.55, "count": 4, "std": 9.23, "q25": 58.32, "q75": 72.4}, {"mois": "2023-08", "mean": 82.92, "median": 84.0, "count": 5, "std": 6.09, "q25": 79.2, "q75": 86.5}, {"mois": "2023-10", "mean": 64.64, "median": 66.3, "count": 12, "std": 6.45, "q25": 61.2, "q75": 69.93}, {"mois": "2023-11", "mean": 65.78, "median": 63.9, "count": 6, "std": 7.58, "q25": 60.7, "q75": 69.8}, {"mois": "2024-01", "mean": 69.23, "median": 70.8, "count": 12, "std": 9.68, "q25": 64.68, "q75": 77.13}, {"mois": "2024-03", "mean": 73.11, "median": 74.5, "count": 8, "std": 8.3, "q25": 68.25, "q75": 77.75}, {"mois": "2024-04", "mean": 70.44, "median": 74.5, "count": 5, "std": 15.44, "q25": 58.7, "q75": 75.3}, {"mois": "2024-06", "mean": 64.58, "median": 69.2, "count": 6, "std": 10.35, "q25": 65.4, "q75": 70.0}, {"mois": "2024-07", "mean": 68.62, "median": 69.85, "count": 12, "std": 6.11, "q25": 66.7, "q75": 72.28}, {"mois": "2024-08", "mean": 58.62, "median": 56.1, "count": 9, "std": 13.16, "q25": 52.4, "q75": 69.4}, {"mois": "2024-09", "mean": 68.39, "median": 68.3, "count": 17, "std": 10.96, "q25": 63.6, "q75": 72.6}, {"mois": "2024-10", "mean": 68.65, "median": 67.75, "count": 30, "std": 10.94, "q25": 63.4, "q75": 76.75}, {"mois": "2024-11", "mean": 64.49, "median": 66.85, "count": 18, "std": 13.59, "q25": 60.63, "q75": 69.5}, {"mois": "2024-12", "mean": 62.04, "median": 55.85, "count": 16, "std": 15.8, "q25": 51.15, "q75": 74.48}, {"mois": "2025-01", "mean": 70.42, "median": 66.9, "count": 13, "std": 12.17, "q25": 62.1, "q75": 74.7}, {"mois": "2025-02", "mean": 69.7, "median": 73.1, "count": 4, "std": 22.23, "q25": 62.28, "q75": 80.53}, {"mois": "2025-03", "mean": 67.88, "median": 69.05, "count": 16, "std": 12.25, "q25": 59.48, "q75": 74.33}, {"mois": "2025-04", "mean": 70.9, "median": 71.7, "count": 23, "std": 12.82, "q25": 66.35, "q75": 75.0}, {"mois": "2025-05", "mean": 69.74, "median": 71.0, "count": 15, "std": 16.35, "q25": 58.8, "q75": 81.45}, {"mois": "2025-06", "mean": 78.51, "median": 77.7, "count": 9, "std": 5.69, "q25": 75.7, "q75": 81.4}, {"mois": "2025-07", "mean": 71.01, "median": 69.7, "count": 15, "std": 8.64, "q25": 65.5, "q75": 76.0}, {"mois": "2025-08", "mean": 75.25, "median": 75.25, "count": 2, "std": 0.07, "q25": 75.23, "q75": 75.28}, {"mois": "2025-09", "mean": 75.43, "median": 74.7, "count": 8, "std": 12.58, "q25": 71.13, "q75": 79.28}, {"mois": "2025-10", "mean": 76.73, "median": 74.0, "count": 12, "std": 9.42, "q25": 71.03, "q75": 80.63}, {"mois": "2025-11", "mean": 74.96, "median": 72.45, "count": 12, "std": 9.45, "q25": 69.05, "q75": 77.33}, {"mois": "2026-01", "mean": 73.04, "median": 65.5, "count": 5, "std": 16.2, "q25": 62.2, "q75": 88.8}, {"mois": "2026-02", "mean": 90.18, "median": 90.7, "count": 5, "std": 3.61, "q25": 88.1, "q75": 92.2}, {"mois": "2026-03", "mean": 69.18, "median": 68.25, "count": 14, "std": 8.23, "q25": 61.7, "q75": 75.78}, {"mois": "2026-04", "mean": 73.18, "median": 73.35, "count": 10, "std": 13.01, "q25": 62.8, "q75": 85.1}], "trimestre": [{"trimestre": "2022Q4", "mean": 70.98, "median": 69.7, "count": 13, "std": 7.87, "q25": 68.5, "q75": 77.1}, {"trimestre": "2023Q1", "mean": 67.36, "median": 69.0, "count": 34, "std": 10.98, "q25": 61.65, "q75": 73.48}, {"trimestre": "2023Q2", "mean": 83.22, "median": 83.2, "count": 18, "std": 8.12, "q25": 78.98, "q75": 89.98}, {"trimestre": "2023Q3", "mean": 75.03, "median": 74.7, "count": 9, "std": 11.74, "q25": 71.8, "q75": 84.0}, {"trimestre": "2023Q4", "mean": 65.02, "median": 65.05, "count": 18, "std": 6.64, "q25": 60.3, "q75": 69.98}, {"trimestre": "2024Q1", "mean": 70.78, "median": 73.7, "count": 20, "std": 9.14, "q25": 64.68, "q75": 77.13}, {"trimestre": "2024Q2", "mean": 67.25, "median": 69.4, "count": 11, "std": 12.58, "q25": 61.45, "q75": 72.6}, {"trimestre": "2024Q3", "mean": 66.15, "median": 68.25, "count": 38, "std": 10.89, "q25": 59.8, "q75": 71.93}, {"trimestre": "2024Q4", "mean": 65.83, "median": 67.0, "count": 64, "std": 13.13, "q25": 55.88, "q75": 74.45}, {"trimestre": "2025Q1", "mean": 69.1, "median": 69.4, "count": 33, "std": 13.18, "q25": 61.1, "q75": 76.4}, {"trimestre": "2025Q2", "mean": 71.99, "median": 72.7, "count": 47, "std": 13.27, "q25": 66.35, "q75": 78.55}, {"trimestre": "2025Q3", "mean": 72.76, "median": 74.6, "count": 25, "std": 9.72, "q25": 66.2, "q75": 76.3}, {"trimestre": "2025Q4", "mean": 75.85, "median": 73.2, "count": 24, "std": 9.27, "q25": 69.8, "q75": 78.75}, {"trimestre": "2026Q1", "mean": 74.36, "median": 74.85, "count": 24, "std": 12.54, "q25": 62.95, "q75": 86.0}, {"trimestre": "2026Q2", "mean": 73.18, "median": 73.35, "count": 10, "std": 13.01, "q25": 62.8, "q75": 85.1}], "annee": [{"annee": "2022", "mean": 70.98, "median": 69.7, "count": 13, "std": 7.87, "q25": 68.5, "q75": 77.1}, {"annee": "2023", "mean": 71.32, "median": 71.0, "count": 79, "std": 11.81, "q25": 63.8, "q75": 79.5}, {"annee": "2024", "mean": 66.78, "median": 68.3, "count": 133, "std": 11.94, "q25": 60.6, "q75": 74.9}, {"annee": "2025", "mean": 72.12, "median": 72.5, "count": 129, "std": 12.04, "q25": 66.2, "q75": 77.5}, {"annee": "2026", "mean": 74.01, "median": 74.85, "count": 34, "std": 12.49, "q25": 62.45, "q75": 85.98}]}, "purity_coke_base": {"mois": [{"mois": "2022-12", "mean": 82.43, "median": 81.25, "count": 4, "std": 4.01, "q25": 79.93, "q75": 83.75}, {"mois": "2023-01", "mean": 79.2, "median": 79.2, "count": 1, "std": null, "q25": 79.2, "q75": 79.2}, {"mois": "2023-02", "mean": 73.47, "median": 74.3, "count": 3, "std": 4.02, "q25": 71.7, "q75": 75.65}, {"mois": "2023-03", "mean": 81.6, "median": 81.6, "count": 1, "std": null, "q25": 81.6, "q75": 81.6}, {"mois": "2023-04", "mean": 78.68, "median": 78.45, "count": 4, "std": 2.37, "q25": 76.98, "q75": 80.15}, {"mois": "2023-05", "mean": 85.0, "median": 85.0, "count": 2, "std": 1.41, "q25": 84.5, "q75": 85.5}, {"mois": "2023-10", "mean": 77.55, "median": 77.85, "count": 4, "std": 1.39, "q25": 77.25, "q75": 78.15}, {"mois": "2023-11", "mean": 80.57, "median": 82.4, "count": 3, "std": 3.53, "q25": 79.45, "q75": 82.6}, {"mois": "2024-01", "mean": 79.2, "median": 79.2, "count": 2, "std": 6.93, "q25": 76.75, "q75": 81.65}, {"mois": "2024-03", "mean": 75.75, "median": 75.75, "count": 2, "std": 0.78, "q25": 75.48, "q75": 76.03}, {"mois": "2024-04", "mean": 77.15, "median": 77.15, "count": 2, "std": 1.48, "q25": 76.63, "q75": 77.68}, {"mois": "2024-07", "mean": 77.6, "median": 78.7, "count": 5, "std": 2.72, "q25": 76.9, "q75": 79.1}, {"mois": "2024-08", "mean": 75.53, "median": 74.3, "count": 3, "std": 2.76, "q25": 73.95, "q75": 76.5}, {"mois": "2024-09", "mean": 81.1, "median": 80.2, "count": 3, "std": 1.82, "q25": 80.05, "q75": 81.7}, {"mois": "2024-10", "mean": 79.73, "median": 83.6, "count": 7, "std": 6.92, "q25": 74.6, "q75": 84.6}, {"mois": "2024-11", "mean": 79.06, "median": 78.9, "count": 10, "std": 6.4, "q25": 74.4, "q75": 80.9}, {"mois": "2024-12", "mean": 79.0, "median": 78.9, "count": 4, "std": 2.9, "q25": 77.15, "q75": 80.75}, {"mois": "2025-01", "mean": 79.03, "median": 79.15, "count": 8, "std": 3.88, "q25": 76.65, "q75": 80.83}, {"mois": "2025-02", "mean": 61.85, "median": 61.85, "count": 2, "std": 18.74, "q25": 55.23, "q75": 68.48}, {"mois": "2025-03", "mean": 78.85, "median": 78.6, "count": 10, "std": 2.99, "q25": 78.03, "q75": 80.73}, {"mois": "2025-04", "mean": 79.66, "median": 81.8, "count": 10, "std": 8.1, "q25": 76.45, "q75": 83.33}, {"mois": "2025-05", "mean": 79.06, "median": 79.4, "count": 8, "std": 5.6, "q25": 77.38, "q75": 82.68}, {"mois": "2025-06", "mean": 85.83, "median": 85.8, "count": 4, "std": 3.62, "q25": 83.2, "q75": 88.43}, {"mois": "2025-07", "mean": 82.46, "median": 82.3, "count": 5, "std": 2.16, "q25": 80.8, "q75": 84.0}, {"mois": "2025-08", "mean": 85.9, "median": 85.9, "count": 1, "std": null, "q25": 85.9, "q75": 85.9}, {"mois": "2025-09", "mean": 86.59, "median": 86.65, "count": 10, "std": 3.65, "q25": 83.95, "q75": 88.5}, {"mois": "2025-10", "mean": 83.12, "median": 85.0, "count": 9, "std": 7.63, "q25": 81.3, "q75": 88.8}, {"mois": "2025-11", "mean": 87.22, "median": 87.2, "count": 6, "std": 3.17, "q25": 85.0, "q75": 88.95}, {"mois": "2026-01", "mean": 89.23, "median": 87.0, "count": 3, "std": 4.4, "q25": 86.7, "q75": 90.65}, {"mois": "2026-02", "mean": 88.3, "median": 88.3, "count": 3, "std": 0.2, "q25": 88.2, "q75": 88.4}, {"mois": "2026-03", "mean": 88.2, "median": 86.7, "count": 7, "std": 3.17, "q25": 85.75, "q75": 90.2}, {"mois": "2026-04", "mean": 81.25, "median": 87.85, "count": 8, "std": 13.77, "q25": 81.58, "q75": 87.98}], "trimestre": [{"trimestre": "2022Q4", "mean": 82.43, "median": 81.25, "count": 4, "std": 4.01, "q25": 79.93, "q75": 83.75}, {"trimestre": "2023Q1", "mean": 76.24, "median": 77.0, "count": 5, "std": 4.82, "q25": 74.3, "q75": 79.2}, {"trimestre": "2023Q2", "mean": 80.78, "median": 80.6, "count": 6, "std": 3.8, "q25": 77.83, "q75": 83.38}, {"trimestre": "2023Q4", "mean": 78.84, "median": 77.9, "count": 7, "std": 2.78, "q25": 77.15, "q75": 80.65}, {"trimestre": "2024Q1", "mean": 77.48, "median": 75.75, "count": 4, "std": 4.49, "q25": 74.98, "q75": 78.25}, {"trimestre": "2024Q2", "mean": 77.15, "median": 77.15, "count": 2, "std": 1.48, "q25": 76.63, "q75": 77.68}, {"trimestre": "2024Q3", "mean": 77.99, "median": 78.7, "count": 11, "std": 3.15, "q25": 75.6, "q75": 80.0}, {"trimestre": "2024Q4", "mean": 79.27, "median": 79.1, "count": 21, "std": 5.84, "q25": 74.4, "q75": 83.6}, {"trimestre": "2025Q1", "mean": 77.22, "median": 78.55, "count": 20, "std": 7.48, "q25": 76.65, "q75": 80.45}, {"trimestre": "2025Q2", "mean": 80.56, "median": 82.0, "count": 22, "std": 6.85, "q25": 78.25, "q75": 83.75}, {"trimestre": "2025Q3", "mean": 85.26, "median": 85.1, "count": 16, "std": 3.61, "q25": 82.45, "q75": 87.15}, {"trimestre": "2025Q4", "mean": 84.76, "median": 86.0, "count": 15, "std": 6.41, "q25": 83.05, "q75": 89.15}, {"trimestre": "2026Q1", "mean": 88.46, "median": 88.1, "count": 13, "std": 2.91, "q25": 86.4, "q75": 88.7}, {"trimestre": "2026Q2", "mean": 82.19, "median": 87.15, "count": 10, "std": 12.31, "q25": 85.88, "q75": 87.9}], "annee": [{"annee": "2022", "mean": 82.43, "median": 81.25, "count": 4, "std": 4.01, "q25": 79.93, "q75": 83.75}, {"annee": "2023", "mean": 78.77, "median": 78.4, "count": 18, "std": 3.97, "q25": 76.63, "q75": 81.58}, {"annee": "2024", "mean": 78.6, "median": 78.7, "count": 38, "std": 4.84, "q25": 74.6, "q75": 81.03}, {"annee": "2025", "mean": 81.54, "median": 82.3, "count": 73, "std": 7.06, "q25": 78.5, "q75": 85.9}, {"annee": "2026", "mean": 85.73, "median": 87.8, "count": 23, "std": 8.76, "q25": 86.05, "q75": 88.4}]}, "purity_hero": {"mois": [{"mois": "2022-11", "mean": 13.8, "median": 13.8, "count": 1, "std": null, "q25": 13.8, "q75": 13.8}, {"mois": "2022-12", "mean": 20.87, "median": 21.0, "count": 3, "std": 1.01, "q25": 20.4, "q75": 21.4}, {"mois": "2023-01", "mean": 14.38, "median": 12.9, "count": 5, "std": 2.99, "q25": 12.0, "q75": 16.6}, {"mois": "2023-02", "mean": 19.3, "median": 18.9, "count": 3, "std": 2.23, "q25": 18.1, "q75": 20.3}, {"mois": "2023-04", "mean": 15.5, "median": 15.5, "count": 2, "std": 1.7, "q25": 14.9, "q75": 16.1}, {"mois": "2023-10", "mean": 18.65, "median": 18.65, "count": 2, "std": 1.91, "q25": 17.98, "q75": 19.33}, {"mois": "2024-04", "mean": 14.9, "median": 14.65, "count": 4, "std": 0.61, "q25": 14.58, "q75": 14.98}, {"mois": "2024-06", "mean": 15.1, "median": 15.1, "count": 1, "std": null, "q25": 15.1, "q75": 15.1}, {"mois": "2024-07", "mean": 10.0, "median": 10.0, "count": 2, "std": 2.12, "q25": 9.25, "q75": 10.75}, {"mois": "2024-08", "mean": 12.05, "median": 12.05, "count": 2, "std": 5.3, "q25": 10.18, "q75": 13.93}, {"mois": "2024-10", "mean": 12.7, "median": 12.65, "count": 4, "std": 4.94, "q25": 10.05, "q75": 15.3}, {"mois": "2024-11", "mean": 15.91, "median": 13.9, "count": 9, "std": 10.35, "q25": 11.6, "q75": 16.7}, {"mois": "2024-12", "mean": 11.26, "median": 11.8, "count": 7, "std": 1.88, "q25": 11.5, "q75": 12.15}, {"mois": "2025-01", "mean": 9.47, "median": 8.7, "count": 12, "std": 2.79, "q25": 7.2, "q75": 12.28}, {"mois": "2025-02", "mean": 5.47, "median": 4.83, "count": 10, "std": 4.64, "q25": 1.36, "q75": 8.75}, {"mois": "2025-03", "mean": 9.77, "median": 9.7, "count": 3, "std": 0.7, "q25": 9.4, "q75": 10.1}, {"mois": "2025-04", "mean": 12.5, "median": 11.8, "count": 4, "std": 2.54, "q25": 11.05, "q75": 13.25}, {"mois": "2025-05", "mean": 15.55, "median": 15.55, "count": 2, "std": 0.49, "q25": 15.38, "q75": 15.73}, {"mois": "2025-06", "mean": 13.03, "median": 13.2, "count": 3, "std": 1.16, "q25": 12.5, "q75": 13.65}, {"mois": "2025-07", "mean": 11.1, "median": 12.4, "count": 3, "std": 5.08, "q25": 8.95, "q75": 13.9}, {"mois": "2025-08", "mean": 13.55, "median": 12.95, "count": 4, "std": 1.3, "q25": 12.88, "q75": 13.63}, {"mois": "2025-09", "mean": 13.2, "median": 13.6, "count": 3, "std": 2.13, "q25": 12.25, "q75": 14.35}, {"mois": "2025-10", "mean": 9.33, "median": 9.4, "count": 7, "std": 4.35, "q25": 6.1, "q75": 12.9}, {"mois": "2025-11", "mean": 10.41, "median": 12.3, "count": 7, "std": 4.34, "q25": 8.5, "q75": 12.9}, {"mois": "2026-01", "mean": 8.9, "median": 8.9, "count": 1, "std": null, "q25": 8.9, "q75": 8.9}, {"mois": "2026-02", "mean": 14.6, "median": 14.6, "count": 2, "std": 5.09, "q25": 12.8, "q75": 16.4}, {"mois": "2026-03", "mean": 11.75, "median": 11.75, "count": 2, "std": 1.06, "q25": 11.38, "q75": 12.13}, {"mois": "2026-04", "mean": 15.47, "median": 14.1, "count": 3, "std": 3.27, "q25": 13.6, "q75": 16.65}], "trimestre": [{"trimestre": "2022Q4", "mean": 19.1, "median": 20.4, "count": 4, "std": 3.63, "q25": 18.3, "q75": 21.2}, {"trimestre": "2023Q1", "mean": 16.23, "median": 16.95, "count": 8, "std": 3.61, "q25": 12.68, "q75": 18.6}, {"trimestre": "2023Q2", "mean": 15.5, "median": 15.5, "count": 2, "std": 1.7, "q25": 14.9, "q75": 16.1}, {"trimestre": "2023Q4", "mean": 18.65, "median": 18.65, "count": 2, "std": 1.91, "q25": 17.98, "q75": 19.33}, {"trimestre": "2024Q2", "mean": 14.94, "median": 14.7, "count": 5, "std": 0.53, "q25": 14.6, "q75": 15.1}, {"trimestre": "2024Q3", "mean": 11.03, "median": 10.0, "count": 4, "std": 3.5, "q25": 8.45, "q75": 12.58}, {"trimestre": "2024Q4", "mean": 13.64, "median": 11.85, "count": 20, "std": 7.4, "q25": 11.4, "q75": 14.63}, {"trimestre": "2025Q1", "mean": 7.9, "median": 7.6, "count": 25, "std": 3.98, "q25": 5.31, "q75": 11.4}, {"trimestre": "2025Q2", "mean": 13.36, "median": 13.2, "count": 9, "std": 2.09, "q25": 11.8, "q75": 15.2}, {"trimestre": "2025Q3", "mean": 12.71, "median": 12.95, "count": 10, "std": 2.93, "q25": 12.5, "q75": 14.73}, {"trimestre": "2025Q4", "mean": 9.87, "median": 10.85, "count": 14, "std": 4.21, "q25": 8.2, "q75": 13.05}, {"trimestre": "2026Q1", "mean": 12.32, "median": 11.0, "count": 5, "std": 3.53, "q25": 11.0, "q75": 12.5}, {"trimestre": "2026Q2", "mean": 14.3, "median": 13.6, "count": 4, "std": 3.55, "q25": 12.53, "q75": 15.38}], "annee": [{"annee": "2022", "mean": 19.1, "median": 20.4, "count": 4, "std": 3.63, "q25": 18.3, "q75": 21.2}, {"annee": "2023", "mean": 16.51, "median": 17.0, "count": 12, "std": 3.16, "q25": 13.95, "q75": 18.6}, {"annee": "2024", "mean": 13.5, "median": 12.4, "count": 29, "std": 6.31, "q25": 11.5, "q75": 15.1}, {"annee": "2025", "mean": 10.05, "median": 11.35, "count": 58, "std": 4.2, "q25": 7.35, "q75": 12.98}, {"annee": "2026", "mean": 13.2, "median": 12.5, "count": 9, "std": 3.47, "q25": 11.0, "q75": 14.1}]}, "totals": {"coke_hcl": 388, "coke_base": 156, "hero": 115, "total_samples": 702}};
+
+// ============================================================
+// STATE
+// ============================================================
+let currentView = 'echantillons';
+let stackMode = 'stacked';
+let currentProduct = 'coke_hcl';
+let currentGranularity = 'mois';
+let charts = {};
+
+const COLORS = {
+  'Cocaine HCl': '#4fc3f7',
+  'Cocaine base': '#f06292',
+  'Héroïne': '#a5d6a7',
+  'Autre': '#ffb74d'
+};
+
+const PROD_META = {
+  coke_hcl: { label: 'Cocaïne HCl', color: '#4fc3f7', data: RAW.purity_coke_hcl, key: 'mois' },
+  coke_base: { label: 'Cocaine base', color: '#f06292', data: RAW.purity_coke_base, key: 'mois' },
+  hero: { label: 'Héroïne base', color: '#a5d6a7', data: RAW.purity_hero, key: 'mois' }
+};
+
+const CHART_DEFAULTS = {
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#1e2536',
+      borderColor: '#2a3348',
+      borderWidth: 1,
+      titleColor: '#e8eaf0',
+      bodyColor: '#9ba6c4',
+      padding: 10,
+      titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+      bodyFont: { family: "'IBM Plex Sans', sans-serif", size: 12 }
+    }
+  },
+  scales: {
+    x: {
+      grid: { color: '#1e2536' },
+      ticks: { color: '#6b7594', font: { family: "'IBM Plex Mono', monospace", size: 10 }, maxRotation: 45 }
+    },
+    y: {
+      grid: { color: '#1e2536' },
+      ticks: { color: '#6b7594', font: { family: "'IBM Plex Mono', monospace", size: 10 } }
+    }
+  },
+  animation: { duration: 350, easing: 'easeInOutQuart' }
+};
+
+// ============================================================
+// VIEW SWITCHING
+// ============================================================
+function showView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  btn.classList.add('active');
+  currentView = name;
+  if (name === 'echantillons') buildSamplesCharts();
+  if (name === 'purete') buildPurityCharts();
+  if (name === 'autres') buildAutresCharts();
+}
+
+// ============================================================
+// SAMPLES DATA PROCESSING
+// ============================================================
+function processSamples() {
+  const byMonth = {};
+  const cats = ['Cocaine HCl', 'Cocaine base', 'Héroïne', 'Autre'];
+  RAW.samples_by_month.forEach(r => {
+    if (!byMonth[r.mois]) byMonth[r.mois] = {};
+    byMonth[r.mois][r.cat] = r.count;
+  });
+  const months = Object.keys(byMonth).sort();
+  const datasets = cats.map(cat => ({
+    label: cat,
+    data: months.map(m => byMonth[m][cat] || 0),
+    backgroundColor: COLORS[cat] + 'cc',
+    borderColor: COLORS[cat],
+    borderWidth: 1,
+    borderRadius: 2
+  }));
+  return { months, datasets, byMonth };
+}
+
+function buildSamplesCharts() {
+  // --- Bar chart ---
+  const { months, datasets } = processSamples();
+  destroyChart('chartSamples');
+  const ctx = document.getElementById('chartSamples').getContext('2d');
+  charts.chartSamples = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: months, datasets },
+    options: {
+      ...CHART_DEFAULTS,
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          mode: 'index',
+          callbacks: {
+            title: items => {
+              const total = items.reduce((s, i) => s + i.raw, 0);
+              return `Mois : ${items[0].label}  —  total : ${total}`;
+            },
+            label: item => {
+              const total = item.chart.data.datasets.reduce((s, ds) => s + (ds.data[item.dataIndex] || 0), 0);
+              const pct = total > 0 ? ((item.raw / total) * 100).toFixed(1) : 0;
+              return ` ${item.dataset.label}: ${item.raw}  (${pct}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        x: { ...CHART_DEFAULTS.scales.x, stacked: stackMode === 'stacked' },
+        y: { ...CHART_DEFAULTS.scales.y, stacked: stackMode === 'stacked', title: { display: true, text: 'Nb échantillons', color: '#6b7594', font: { size: 10 } } }
+      }
+    }
+  });
+
+  // --- Pie chart ---
+  destroyChart('chartPie');
+  const ctxPie = document.getElementById('chartPie').getContext('2d');
+  charts.chartPie = new Chart(ctxPie, {
+    type: 'doughnut',
+    data: {
+      labels: ['Cocaïne HCl', 'Cocaine base', 'Héroïne', 'Autre'],
+      datasets: [{
+        data: [RAW.totals.coke_hcl, RAW.totals.coke_base, RAW.totals.hero, 702 - RAW.totals.coke_hcl - RAW.totals.coke_base - RAW.totals.hero],
+        backgroundColor: ['#4fc3f7cc', '#f06292cc', '#a5d6a7cc', '#ffb74dcc'],
+        borderColor: ['#4fc3f7', '#f06292', '#a5d6a7', '#ffb74d'],
+        borderWidth: 1.5,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '60%',
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            color: '#9ba6c4',
+            font: { family: "'IBM Plex Sans'", size: 11 },
+            boxWidth: 12,
+            padding: 12,
+            generateLabels: chart => {
+              const data = chart.data.datasets[0].data;
+              const total = data.reduce((s, v) => s + v, 0);
+              return chart.data.labels.map((label, i) => ({
+                text: `${label}  —  ${data[i]}  (${((data[i]/total)*100).toFixed(1)}%)`,
+                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                strokeStyle: chart.data.datasets[0].borderColor[i],
+                fontColor: '#9ba6c4',
+                lineWidth: 1.5,
+                index: i
+              }));
+            }
+          }
+        },
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          callbacks: {
+            label: item => {
+              const data = item.chart.data.datasets[0].data;
+              const total = data.reduce((s, v) => s + v, 0);
+              const val = item.raw;
+              const pct = ((val / total) * 100).toFixed(1);
+              return ` ${item.label}: ${val}  (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // --- Yearly grouped bar chart ---
+  destroyChart('chartYearly');
+  const years = ['2022', '2023', '2024', '2025', '2026'];
+  const yearData = {};
+  const cats = ['Cocaine HCl', 'Cocaine base', 'Héroïne', 'Autre'];
+  RAW.samples_by_month.forEach(r => {
+    const y = r.mois.split('-')[0];
+    if (!yearData[y]) yearData[y] = {};
+    yearData[y][r.cat] = (yearData[y][r.cat] || 0) + r.count;
+  });
+  const ctxY = document.getElementById('chartYearly').getContext('2d');
+  charts.chartYearly = new Chart(ctxY, {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: cats.map(cat => ({
+        label: cat,
+        data: years.map(y => yearData[y]?.[cat] || 0),
+        backgroundColor: COLORS[cat] + 'cc',
+        borderColor: COLORS[cat],
+        borderWidth: 1,
+        borderRadius: 2
+      }))
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend: {
+          display: true,
+          labels: { color: '#9ba6c4', font: { family: "'IBM Plex Sans'", size: 11 }, boxWidth: 10, padding: 10 }
+        },
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          mode: 'index',
+          callbacks: {
+            title: items => {
+              const total = items.reduce((s, i) => s + i.raw, 0);
+              return `${items[0].label}  —  total : ${total}`;
+            },
+            label: item => {
+              const total = item.chart.data.datasets.reduce((s, ds) => s + (ds.data[item.dataIndex] || 0), 0);
+              const pct = total > 0 ? ((item.raw / total) * 100).toFixed(1) : 0;
+              return ` ${item.dataset.label}: ${item.raw}  (${pct}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        x: { ...CHART_DEFAULTS.scales.x, stacked: false },
+        y: { ...CHART_DEFAULTS.scales.y, stacked: false }
+      }
+    }
+  });
+}
+
+// ============================================================
+// STACK MODE
+// ============================================================
+function setStackMode(mode, btn) {
+  stackMode = mode;
+  document.querySelectorAll('.seg-btn').forEach(b => {
+    if (b.onclick.toString().includes('setStackMode')) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  if (charts.chartSamples) {
+    charts.chartSamples.options.scales.x.stacked = mode === 'stacked';
+    charts.chartSamples.options.scales.y.stacked = mode === 'stacked';
+    charts.chartSamples.update();
+  }
+}
+
+// ============================================================
+// PURITY
+// ============================================================
+function selectProduct(prod, btn) {
+  currentProduct = prod;
+  document.querySelectorAll('.product-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const meta = PROD_META[prod];
+  document.getElementById('purity-dot').style.background = meta.color;
+  document.getElementById('purity-title').textContent = meta.label + ' — Évolution de la pureté';
+  document.getElementById('hist-dot').style.background = meta.color;
+  document.getElementById('hist-title').textContent = meta.label + ' — Distribution des puretés';
+  buildPurityChart();
+  updatePurityStats();
+}
+
+function setGranularity(gran, btn) {
+  currentGranularity = gran;
+  document.querySelectorAll('.seg-btn').forEach(b => {
+    if (b.onclick && b.onclick.toString().includes('setGranularity')) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  buildPurityChart();
+}
+
+function buildPurityCharts() {
+  buildPurityChart();
+  buildHistogram();
+  updatePurityStats();
+}
+
+function buildPurityChart() {
+  const meta = PROD_META[currentProduct];
+  const rawData = meta.data[currentGranularity];
+  const labelKey = currentGranularity;
+  const labels = rawData.map(d => d[labelKey]);
+  const medians = rawData.map(d => d.median);
+  const means = rawData.map(d => d.mean);
+  const q25 = rawData.map(d => d.q25);
+  const q75 = rawData.map(d => d.q75);
+
+  // Band dataset: fill between Q1 and Q3
+  // We'll use a custom approach: draw filled area using two datasets
+  destroyChart('chartPurity');
+  const ctx = document.getElementById('chartPurity').getContext('2d');
+
+  const color = meta.color;
+  const hexToRgb = h => { const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16); return `${r},${g},${b}`; };
+  const rgb = hexToRgb(color);
+
+  charts.chartPurity = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Q75',
+          data: q75,
+          fill: '+1',
+          backgroundColor: `rgba(${rgb},0.12)`,
+          borderColor: 'transparent',
+          pointRadius: 0,
+          tension: 0.3
+        },
+        {
+          label: 'Q25',
+          data: q25,
+          fill: false,
+          borderColor: 'transparent',
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          tension: 0.3
+        },
+        {
+          label: 'Médiane',
+          data: medians,
+          fill: false,
+          borderColor: color,
+          borderWidth: 2.5,
+          pointBackgroundColor: color,
+          pointRadius: rawData.map(d => d.count < 5 ? 4 : 3),
+          pointHoverRadius: 7,
+          tension: 0.3,
+          spanGaps: true
+        },
+        {
+          label: 'Moyenne',
+          data: means,
+          fill: false,
+          borderColor: color,
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          spanGaps: true
+        }
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          callbacks: {
+            title: items => items[0].label,
+            label: item => {
+              if (item.datasetIndex === 0) return ` Q3: ${item.raw?.toFixed(1)}%`;
+              if (item.datasetIndex === 1) return ` Q1: ${item.raw?.toFixed(1)}%`;
+              if (item.datasetIndex === 2) return ` Médiane: ${item.raw?.toFixed(1)}%  ·  n=${rawData[item.dataIndex]?.count}`;
+              if (item.datasetIndex === 3) return ` Moyenne: ${item.raw?.toFixed(1)}%`;
+              return '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x },
+        y: {
+          ...CHART_DEFAULTS.scales.y,
+          title: { display: true, text: 'Pureté (%)', color: '#6b7594', font: { size: 10 } },
+          min: currentProduct === 'hero' ? 0 : 20,
+          max: currentProduct === 'hero' ? 50 : 100
+        }
+      }
+    }
+  });
+  buildHistogram();
+}
+
+function buildHistogram() {
+  const meta = PROD_META[currentProduct];
+  const gran = 'annee';
+  const rawData = meta.data[gran];
+  const labels = rawData.map(d => d.annee);
+  const color = meta.color;
+
+  destroyChart('chartHist');
+  const ctx2 = document.getElementById('chartHist').getContext('2d');
+  charts.chartHist = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Médiane',
+          data: rawData.map(d => d.median),
+          backgroundColor: color + '99',
+          borderColor: color,
+          borderWidth: 1.5,
+          borderRadius: 3,
+          order: 2
+        },
+        {
+          label: 'Moyenne',
+          data: rawData.map(d => d.mean),
+          type: 'line',
+          borderColor: color,
+          borderWidth: 2,
+          borderDash: [4, 3],
+          pointRadius: 4,
+          fill: false,
+          order: 1,
+          spanGaps: true
+        }
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          callbacks: {
+            label: item => {
+              if (item.datasetIndex === 0) return ` Médiane: ${item.raw?.toFixed(1)}%  ·  n=${rawData[item.dataIndex]?.count}`;
+              return ` Moyenne: ${item.raw?.toFixed(1)}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x },
+        y: {
+          ...CHART_DEFAULTS.scales.y,
+          title: { display: true, text: 'Pureté (%)', color: '#6b7594', font: { size: 10 } },
+          min: currentProduct === 'hero' ? 0 : 50,
+          max: currentProduct === 'hero' ? 30 : 100
+        }
+      }
+    }
+  });
+}
+
+function updatePurityStats() {
+  const meta = PROD_META[currentProduct];
+  const data = meta.data.annee;
+  const all_medians = meta.data.mois.map(d => d.median).filter(v => v != null);
+  const all_means = meta.data.mois.map(d => d.mean).filter(v => v != null);
+  const totalN = meta.data.annee.reduce((s, d) => s + d.count, 0);
+  const globalMedian = [...all_medians].sort((a,b)=>a-b)[Math.floor(all_medians.length/2)];
+  const globalMean = all_means.reduce((s,v)=>s+v,0)/all_means.length;
+  const color = meta.color;
+
+  document.getElementById('purity-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="label">n total</div>
+      <div class="val" style="color:${color}">${totalN}</div>
+      <div class="sub">échantillons</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Médiane globale</div>
+      <div class="val" style="color:${color}">${globalMedian?.toFixed(1)}%</div>
+      <div class="sub">sur toute la période</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Moyenne globale</div>
+      <div class="val" style="color:${color}">${globalMean?.toFixed(1)}%</div>
+      <div class="sub">mensuelle pondérée</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// AUTRES SUBSTANCES
+// ============================================================
+const AUTRES_DATA = {"by_produit": {"Résine THC": 11, "Cannabis THC": 7, "Inconnu": 5, "Cannabis CBD": 3, "Kétamine": 3, "e-liquide": 2, "paracétamol": 1, "Proche CBD": 1, "2-MMC": 1, "Inconnu (proche cellulose)": 1, "MDMA": 1, "Méthamphétamine": 1, "Proche MDMA": 1, "Dormicum": 1, "Xanax": 1}, "by_annee_produit": {"2023": {"paracétamol": 1}, "2024": {"Inconnu": 1, "Résine THC": 8, "Cannabis THC": 4, "Cannabis CBD": 2, "Kétamine": 2}, "2025": {"Inconnu": 4, "Cannabis CBD": 1, "Proche CBD": 1, "Cannabis THC": 3, "2-MMC": 1, "Inconnu (proche cellulose)": 1, "MDMA": 1, "Résine THC": 2, "Méthamphétamine": 1, "e-liquide": 2, "Proche MDMA": 1, "Dormicum": 1, "Xanax": 1}, "2026": {"Kétamine": 1, "Résine THC": 1}}, "rows": [{"date": "2023-05-24", "produit": "paracétamol", "purete": null, "coupage": null, "prix": null, "commentaire": "amené pour nous tester"}, {"date": "2024-01-24", "produit": "Inconnu", "purete": null, "coupage": null, "prix": null, "commentaire": "Amphétamine très humide"}, {"date": "2024-10-02", "produit": "Résine THC", "purete": 35.9, "coupage": null, "prix": null, "commentaire": "4 le gramme"}, {"date": "2024-10-02", "produit": "Résine THC", "purete": 36.8, "coupage": null, "prix": null, "commentaire": "3 le gramme"}, {"date": "2024-10-02", "produit": "Cannabis THC", "purete": 21.7, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-10-02", "produit": "Cannabis THC", "purete": 19.2, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-10-16", "produit": "Résine THC", "purete": 15.5, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-10-16", "produit": "Cannabis CBD", "purete": 19.9, "coupage": null, "prix": null, "commentaire": "Attendu être du THC"}, {"date": "2024-10-30", "produit": "Cannabis THC", "purete": 10.8, "coupage": null, "prix": null, "commentaire": "20 grammes pour 30.-"}, {"date": "2024-10-30", "produit": "Résine THC", "purete": 33.6, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-11-13", "produit": "Cannabis THC", "purete": 26.2, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-11-27", "produit": "Résine THC", "purete": 32.3, "coupage": null, "prix": "50.0", "commentaire": null}, {"date": "2024-12-11", "produit": "Kétamine", "purete": 91.9, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-12-11", "produit": "Cannabis CBD", "purete": 15.8, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-12-11", "produit": "Résine THC", "purete": 26.1, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-12-11", "produit": "Résine THC", "purete": 27.1, "coupage": null, "prix": null, "commentaire": null}, {"date": "2024-12-11", "produit": "Kétamine", "purete": 94.3, "coupage": null, "prix": null, "commentaire": "8.-/g mais il vient de l'hollande, en Suisse il dit que c'est 50"}, {"date": "2024-12-11", "produit": "Résine THC", "purete": 30.3, "coupage": null, "prix": null, "commentaire": null}, {"date": "2025-01-22", "produit": "Inconnu", "purete": null, "coupage": null, "prix": null, "commentaire": "Héroïne déjà caramélisée"}, {"date": "2025-02-05", "produit": "Cannabis CBD", "purete": 21.1, "coupage": null, "prix": null, "commentaire": "Acheté comme THC; laissé pour analyse"}, {"date": "2025-03-19", "produit": "Proche CBD", "purete": null, "coupage": null, "prix": null, "commentaire": "Laissé pour analyse (13,2%); achète pour moins que 3.-/g"}, {"date": "2025-04-02", "produit": "Cannabis THC", "purete": 16.3, "coupage": null, "prix": null, "commentaire": "70 9gr"}, {"date": "2025-04-16", "produit": "2-MMC", "purete": null, "coupage": null, "prix": null, "commentaire": "Gratuit, elle s'attendait de la méth"}, {"date": "2025-04-16", "produit": "Inconnu (proche cellulose)", "purete": 2.0, "coupage": null, "prix": "0.14", "commentaire": "Laissé pour analyse (2%)"}, {"date": "2025-04-16", "produit": "MDMA", "purete": 98.5, "coupage": null, "prix": null, "commentaire": null}, {"date": "2025-04-16", "produit": "Résine THC", "purete": 38.1, "coupage": null, "prix": null, "commentaire": "Il vend 1g à 10.-; laissé pour analyse"}, {"date": "2025-04-16", "produit": "Méthamphétamine", "purete": 99.1, "coupage": null, "prix": null, "commentaire": "Avant 200.- le g, maintenant 100"}, {"date": "2025-04-16", "produit": "Cannabis THC", "purete": 16.6, "coupage": null, "prix": null, "commentaire": null}, {"date": "2025-06-11", "produit": "Cannabis THC", "purete": 17.8, "coupage": null, "prix": null, "commentaire": "Trouvé par terre"}, {"date": "2025-06-11", "produit": "Résine THC", "purete": 27.3, "coupage": null, "prix": null, "commentaire": "Offert"}, {"date": "2025-07-09", "produit": "e-liquide", "purete": null, "coupage": null, "prix": null, "commentaire": "Cadeau; labo: glycérine et nicotine"}, {"date": "2025-07-09", "produit": "e-liquide", "purete": null, "coupage": null, "prix": null, "commentaire": "Cadeau; labo: glycérine et nicotine"}, {"date": "2025-07-09", "produit": "Proche MDMA", "purete": null, "coupage": null, "prix": "7.0", "commentaire": "veut pas laisser pour labo, 70€ pour 10 pièces"}, {"date": "2025-11-12", "produit": "Dormicum", "purete": null, "coupage": null, "prix": null, "commentaire": "Ordonnance"}, {"date": "2025-11-12", "produit": "Xanax", "purete": null, "coupage": null, "prix": null, "commentaire": "Ordonnance"}, {"date": "2025-11-12", "produit": "Inconnu", "purete": null, "coupage": null, "prix": "5.0", "commentaire": "Acheté comme sevre-long 200"}, {"date": "2025-11-12", "produit": "Inconnu", "purete": null, "coupage": null, "prix": "0.43", "commentaire": "Acheté comme tranxilium 1,3 CHF pour 3 pilules"}, {"date": "2025-11-12", "produit": "Inconnu", "purete": null, "coupage": null, "prix": null, "commentaire": "Gélule orange trouvée par terre, gabapentin"}, {"date": "2026-01-21", "produit": "Kétamine", "purete": 96.7, "coupage": null, "prix": null, "commentaire": "En a acheté 700g (5CHF/g)"}, {"date": "2026-04-01", "produit": "Résine THC", "purete": 27.3, "coupage": null, "prix": null, "commentaire": "prix pas in"}], "colors": {"Résine THC": "#8bc34a", "Cannabis THC": "#4caf50", "Cannabis CBD": "#009688", "Kétamine": "#ce93d8", "Inconnu": "#90a4ae", "e-liquide": "#80deea", "MDMA": "#ff8a65", "Proche MDMA": "#ffb74d", "Méthamphétamine": "#ef5350", "2-MMC": "#f06292", "paracétamol": "#fff176", "Dormicum": "#b39ddb", "Xanax": "#c5cae9", "Proche CBD": "#a5d6a7", "Inconnu (proche cellulose)": "#b0bec5"}};
+
+function buildAutresCharts() {
+  // -- Pie --
+  destroyChart('chartAutresPie');
+  const produits = Object.keys(AUTRES_DATA.by_produit);
+  const counts = produits.map(p => AUTRES_DATA.by_produit[p]);
+  const colors = produits.map(p => AUTRES_DATA.colors[p] || '#aaa');
+  const total = counts.reduce((s,v) => s+v, 0);
+
+  const ctxP = document.getElementById('chartAutresPie').getContext('2d');
+  charts.chartAutresPie = new Chart(ctxP, {
+    type: 'doughnut',
+    data: {
+      labels: produits,
+      datasets: [{ data: counts, backgroundColor: colors.map(c => c+'bb'), borderColor: colors, borderWidth: 1.5, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true, cutout: '55%',
+      plugins: {
+        legend: {
+          display: true, position: 'right',
+          labels: {
+            color: '#9ba6c4', font: { family: "'IBM Plex Sans'", size: 11 },
+            boxWidth: 10, padding: 8,
+            generateLabels: chart => {
+              const d = chart.data.datasets[0].data;
+              const tot = d.reduce((s,v)=>s+v,0);
+              return chart.data.labels.map((label,i) => ({
+                text: `${label}  ${d[i]}  (${((d[i]/tot)*100).toFixed(0)}%)`,
+                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                strokeStyle: chart.data.datasets[0].borderColor[i],
+                fontColor: '#9ba6c4',
+                lineWidth: 1, index: i
+              }));
+            }
+          }
+        },
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          callbacks: {
+            label: item => ` ${item.label}: ${item.raw}  (${((item.raw/total)*100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+
+  // -- Stacked bar by year --
+  destroyChart('chartAutresYear');
+  const years = Object.keys(AUTRES_DATA.by_annee_produit).sort();
+  const allProds = [...new Set(years.flatMap(y => Object.keys(AUTRES_DATA.by_annee_produit[y])))];
+  const ctxY = document.getElementById('chartAutresYear').getContext('2d');
+  charts.chartAutresYear = new Chart(ctxY, {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: allProds.map(p => ({
+        label: p,
+        data: years.map(y => AUTRES_DATA.by_annee_produit[y]?.[p] || 0),
+        backgroundColor: (AUTRES_DATA.colors[p] || '#aaa') + 'bb',
+        borderColor: AUTRES_DATA.colors[p] || '#aaa',
+        borderWidth: 1, borderRadius: 2
+      }))
+    },
+    options: {
+      ...CHART_DEFAULTS, responsive: true, maintainAspectRatio: true,
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend: {
+          display: true,
+          labels: { color: '#9ba6c4', font: { family: "'IBM Plex Sans'", size: 10 }, boxWidth: 10, padding: 8 }
+        },
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          mode: 'index',
+          callbacks: {
+            title: items => {
+              const tot = items.reduce((s,i)=>s+i.raw,0);
+              return `${items[0].label}  —  total : ${tot}`;
+            },
+            label: item => item.raw > 0 ? ` ${item.dataset.label}: ${item.raw}` : null,
+            filter: item => item.raw > 0
+          }
+        }
+      },
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        x: { ...CHART_DEFAULTS.scales.x, stacked: true },
+        y: { ...CHART_DEFAULTS.scales.y, stacked: true, title: { display: true, text: 'Nb échantillons', color: '#6b7594', font: { size: 10 } } }
+      }
+    }
+  });
+
+  // -- Table --
+  const tbody = document.getElementById('autresTbody');
+  tbody.innerHTML = '';
+  AUTRES_DATA.rows.forEach(r => {
+    const color = AUTRES_DATA.colors[r.produit] || '#aaa';
+    const purStr = r.purete != null ? `<span style="color:${color}">${r.purete}%</span>` : '<span style="color:#3a4560">—</span>';
+    const prixStr = r.prix ? r.prix + ' CHF' : '—';
+    const commStr = r.commentaire ? r.commentaire : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="date">${r.date}</td>
+      <td><span class="prod-badge" style="color:${color};border-color:${color}33;background:${color}15">${r.produit}</span></td>
+      <td class="purete">${purStr}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">${prixStr}</td>
+      <td class="comment">${commStr}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+// ============================================================
+// DATA LOADER — API dynamique ou fallback statique
+// ============================================================
+let RAW = null;
+
+function updateHeaderStats() {
+  const total = RAW.totals.total_samples;
+  document.getElementById('update-badge').textContent = `n=${total}`;
+  document.querySelector('.kpi-grid .kpi:nth-child(1) .kpi-value').textContent = RAW.totals.coke_hcl;
+  document.querySelector('.kpi-grid .kpi:nth-child(2) .kpi-value').textContent = RAW.totals.coke_base;
+  document.querySelector('.kpi-grid .kpi:nth-child(3) .kpi-value').textContent = RAW.totals.hero;
+  document.querySelector('.kpi-grid .kpi:nth-child(4) .kpi-value').textContent = total;
+  if (RAW.last_updated) {
+    const d = new Date(RAW.last_updated);
+    document.querySelector('.kpi-grid .kpi:nth-child(4) .kpi-sub').textContent =
+      `Màj ${d.toLocaleDateString('fr-CH')} ${d.toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}`;
+  }
+  // Reconstruire PROD_META avec données fraîches
+  PROD_META.coke_hcl.data = RAW.purity_coke_hcl;
+  PROD_META.coke_base.data = RAW.purity_coke_base;
+  PROD_META.hero.data = RAW.purity_hero;
+}
+
+async function loadData() {
+  try {
+    if (API_URL) {
+      const res = await fetch(API_URL);
+      RAW = await res.json();
+    } else {
+      RAW = RAW_STATIC;
+    }
+  } catch(e) {
+    console.warn('API indisponible, données statiques utilisées:', e);
+    RAW = RAW_STATIC;
+  }
+  updateHeaderStats();
+  buildSamplesCharts();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+  loadData();
+});
+</script>
+</body>
+</html>
